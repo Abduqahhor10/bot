@@ -1,33 +1,42 @@
 from aiogram import Bot, Dispatcher, types
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 TOKEN = "7866544180:AAHuupbBqrspYxCXtrZuk47D8zdLxZZ-YH8"
-CHANNEL_ID = -1002306035491
+
+CHANNELS = [
+    "@hgfddddfs",
+    "@bf34dqdfdfsrr",
+    "@kanalnoooo1",
+    "@awsdfghnfx"
+]
 
 bot = Bot(token=TOKEN)
-storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
+dp = Dispatcher(bot)
 
-class UserState(StatesGroup):
-    waiting_for_number = State()
-
+async def is_user_subscribed(user_id):
+    not_subscribed = []  
+    for channel in CHANNELS:
+        try:
+            member = await bot.get_chat_member(channel, user_id)
+            if member.status not in ["member", "administrator", "creator"]:
+                not_subscribed.append(channel)
+        except Exception as e:
+            print(f"{channel} kanalida xatolik: {e}")
+            not_subscribed.append(channel)
+    return not_subscribed 
 @dp.message_handler(commands=["start"])
-async def start(message: types.Message):
-    await message.answer("Salom! Iltimos, biror son kiriting.")
-    await UserState.waiting_for_number.set()
+async def start_command(message: types.Message):
+    user_id = message.from_user.id
+    not_subscribed_channels = await is_user_subscribed(user_id)
 
-@dp.message_handler(state=UserState.waiting_for_number)
-async def send_number_to_channel(message: types.Message, state: FSMContext):
-    if message.text.isdigit():  
-        user_number = message.text
-        await bot.send_message(CHANNEL_ID, f"#{user_number}") 
-        await message.answer(f"#{user_number} kanalda e'lon qilindi ✅")
-        await state.finish()  
+    if not_subscribed_channels:
+        keyboard = InlineKeyboardMarkup()
+        for channel in not_subscribed_channels:
+            keyboard.add(InlineKeyboardButton(f"🔗 {channel} ga obuna bo‘lish", url=f"https://t.me/{channel[1:]}"))
+        await message.answer("Botdan foydalanish uchun quyidagi kanallarga obuna bo‘ling:", reply_markup=keyboard)
     else:
-        await message.answer("Iltimos, faqat son kiriting!")
+        await message.answer("Siz barcha kanallarga obuna bo‘lgansiz! Xush kelibsiz! 🎉")
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
